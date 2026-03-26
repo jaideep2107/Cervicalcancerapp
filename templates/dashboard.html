@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-dark bg-dark mb-4">
+        <div class="container-fluid">
+            <span class="navbar-brand">Medical AI System - {{ role | capitalize }} Portal</span>
+            <div class="d-flex">
+                <span class="text-light me-3 mt-2">Welcome, {{ name }}</span>
+                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="row">
+            <div class="col-md-8">
+                
+                {% if role in ['admin', 'doctor'] %}
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header bg-primary text-white">Register New Patient</div>
+                    <div class="card-body">
+                        <form action="/create_patient" method="POST" class="row g-3">
+                            <div class="col-md-6"><input type="text" name="name" class="form-control" placeholder="Full Name" required></div>
+                            <div class="col-md-6"><input type="text" name="patient_id" class="form-control" placeholder="Assign Patient ID" required></div>
+                            <div class="col-md-4"><input type="password" name="password" class="form-control" placeholder="Temporary Password" required></div>
+                            <div class="col-md-4"><input type="date" name="dob" class="form-control" required></div>
+                            <div class="col-md-4">
+                                <select name="gender" class="form-control"><option value="Female">Female Only</option></select>
+                            </div>
+                            <div class="col-12"><button type="submit" class="btn btn-primary">Register Patient</button></div>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if role == 'doctor' %}
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header bg-success text-white">Run AI Prediction</div>
+                    <div class="card-body">
+                        <form action="/predict" method="POST">
+                            <div class="mb-3">
+                                <select name="patient_id" class="form-control" required>
+                                    <option value="">Select Patient...</option>
+                                    {% for p in patients %}
+                                        <option value="{{ p.id }}">{{ p.name }} ({{ p.id }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <p class="text-muted small">Enter patient risk factors (Dataset features):</p>
+                            <div class="row g-2 mb-3">
+                                {% for feat in feature_names %}
+                                <div class="col-md-4">
+                                    <input type="number" step="any" name="{{ feat }}" class="form-control" placeholder="{{ feat }}" required>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <button type="submit" class="btn btn-success">Generate AI Assessment</button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if role in ['doctor', 'radiologist'] %}
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header bg-secondary text-white">Upload Files (Prescriptions/Biopsy)</div>
+                    <div class="card-body">
+                        <form action="/upload_file" method="POST" enctype="multipart/form-data" class="row g-3">
+                            <div class="col-md-4"><input type="text" name="patient_id" class="form-control" placeholder="Patient ID" required></div>
+                            <div class="col-md-4">
+                                <select name="file_type" class="form-control">
+                                    <option value="Biopsy">Biopsy Scan</option>
+                                    <option value="Prescription">Prescription</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4"><input type="file" name="file" class="form-control" required></div>
+                            <div class="col-12"><button type="submit" class="btn btn-secondary">Upload</button></div>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <div class="col-md-4">
+                
+                {% if role in ['pharmacist', 'admin'] %}
+                <div class="card mb-4 shadow-sm">
+                    <div class="card-header bg-warning">Generate Bill</div>
+                    <div class="card-body">
+                        <form action="/add_bill" method="POST">
+                            <input type="text" name="patient_id" class="form-control mb-2" placeholder="Patient ID" required>
+                            <input type="number" step="0.01" name="amount" class="form-control mb-2" placeholder="Amount ($)" required>
+                            <input type="text" name="description" class="form-control mb-2" placeholder="Description" required>
+                            <button type="submit" class="btn btn-warning w-100">Add Bill</button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="card shadow-sm">
+                    <div class="card-header bg-dark text-white">System Data View</div>
+                    <div class="card-body" style="max-height: 500px; overflow-y: auto;">
+                        {% if role == 'patient' %}
+                            <h5>My Status: <b>{{ my_details.risk_status }}</b></h5>
+                            <hr>
+                            <h6>My Bills</h6>
+                            <ul>{% for b in bills if b.patient_id == session.user %}<li>${{ b.amount }} - {{ b.description }}</li>{% endfor %}</ul>
+                        {% else %}
+                            <h6>Recent Patients</h6>
+                            <ul class="list-group list-group-flush mb-3">
+                                {% for p in patients %}
+                                <li class="list-group-item small">
+                                    <b>{{ p.id }}</b>: {{ all_details[p.id].risk_status }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            
+                            <h6>Recent Notes & Files</h6>
+                            <ul class="list-group list-group-flush mb-3">
+                                {% for n in notes %}
+                                <li class="list-group-item small">Note by {{ n.author_name }} on {{ n.patient_id }}</li>
+                                {% endfor %}
+                                {% for u in uploads %}
+                                <li class="list-group-item small">{{ u.file_type }} uploaded for {{ u.patient_id }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</body>
+</html>
