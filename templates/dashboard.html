@@ -170,3 +170,107 @@
                         </form>
                     </div>
                 </div>
+                {% endif %}
+
+                {% if role in ['doctor', 'radiologist'] %}
+                <div class="card mb-4 shadow-sm border-secondary">
+                    <div class="card-header bg-secondary text-white fw-bold">Upload Medical Files</div>
+                    <div class="card-body">
+                        <form action="/upload_file" method="POST" enctype="multipart/form-data" class="row g-3">
+                            <div class="col-md-4"><input type="text" name="patient_id" class="form-control bg-light" placeholder="Patient ID" required></div>
+                            <div class="col-md-4">
+                                <select name="file_type" class="form-select bg-light">
+                                    <option value="Biopsy">Biopsy Scan</option>
+                                    <option value="Prescription">Prescription</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4"><input type="file" name="file" class="form-control" required></div>
+                            <div class="col-12"><button type="submit" class="btn btn-secondary fw-bold">Secure Upload</button></div>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
+            </div>
+
+            <div class="col-md-4">
+                
+                {% if role in ['pharmacist', 'admin'] %}
+                <div class="card mb-4 shadow-sm border-warning">
+                    <div class="card-header bg-warning text-dark fw-bold">Generate Patient Bill</div>
+                    <div class="card-body">
+                        <form action="/add_bill" method="POST">
+                            <input type="text" name="patient_id" class="form-control mb-2 bg-light" placeholder="Patient ID" required>
+                            <input type="number" step="0.01" name="amount" class="form-control mb-2 bg-light" placeholder="Amount ($)" required>
+                            <input type="text" name="description" class="form-control mb-3 bg-light" placeholder="Treatment / Medication Description" required>
+                            <button type="submit" class="btn btn-warning w-100 fw-bold">Add Bill</button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="card shadow-sm border-dark">
+                    <div class="card-header bg-dark text-white fw-bold">System Data View</div>
+                    <div class="card-body bg-light" style="max-height: 600px; overflow-y: auto;">
+                        
+                        {% if role == 'patient' %}
+                            <h5 class="mb-3">My Assessment Status: <br>
+                                {% if my_details.risk_status == 'High Risk' %}
+                                    <span class="badge bg-danger fs-6 mt-2">{{ my_details.risk_status }}</span>
+                                {% elif my_details.risk_status == 'Low Risk' %}
+                                    <span class="badge bg-success fs-6 mt-2">{{ my_details.risk_status }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary fs-6 mt-2">{{ my_details.risk_status }}</span>
+                                {% endif %}
+                            </h5>
+                            <hr class="text-muted">
+                            <h6 class="fw-bold text-secondary">My Invoices</h6>
+                            <ul class="list-group list-group-flush border rounded">
+                                {% for b in bills if b.patient_id == session.user %}
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        {{ b.description }}
+                                        <span class="badge bg-primary rounded-pill">${{ b.amount }}</span>
+                                    </li>
+                                {% else %}
+                                    <li class="list-group-item text-muted small">No pending bills.</li>
+                                {% endfor %}
+                            </ul>
+                        
+                        {% else %}
+                            <h6 class="fw-bold text-secondary">Registered Patients</h6>
+                            <ul class="list-group list-group-flush mb-4 border rounded">
+                                {% for p in patients %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center small">
+                                    <span><b>{{ p.id }}</b> ({{ p.name }})</span>
+                                    {% if all_details[p.id].risk_status == 'High Risk' %}
+                                        <span class="badge bg-danger">{{ all_details[p.id].risk_status }}</span>
+                                    {% elif all_details[p.id].risk_status == 'Low Risk' %}
+                                        <span class="badge bg-success">{{ all_details[p.id].risk_status }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Pending</span>
+                                    {% endif %}
+                                </li>
+                                {% else %}
+                                    <li class="list-group-item text-muted small">No patients registered yet.</li>
+                                {% endfor %}
+                            </ul>
+                            
+                            <h6 class="fw-bold text-secondary">Recent Uploads</h6>
+                            <ul class="list-group list-group-flush border rounded">
+                                {% for u in uploads %}
+                                <li class="list-group-item small text-muted">
+                                    <b class="text-dark">{{ u.file_type }}</b> uploaded for {{ u.patient_id }}
+                                </li>
+                                {% else %}
+                                    <li class="list-group-item text-muted small">No files uploaded yet.</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</body>
+</html>
