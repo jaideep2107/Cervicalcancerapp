@@ -1,147 +1,109 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
-    <nav class="navbar navbar-dark bg-dark mb-4">
-        <div class="container-fluid">
-            <span class="navbar-brand">Medical AI System - {{ role | capitalize }} Portal</span>
-            <div class="d-flex">
-                <span class="text-light me-3 mt-2">Welcome, {{ name }}</span>
-                <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
-            </div>
-        </div>
-    </nav>
-
-    <div class="container">
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <div class="alert alert-{{ category }}">{{ message }}</div>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-
-        <div class="row">
-            <div class="col-md-8">
-                
-                {% if role in ['admin', 'doctor'] %}
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-header bg-primary text-white">Register New Patient</div>
-                    <div class="card-body">
-                        <form action="/create_patient" method="POST" class="row g-3">
-                            <div class="col-md-6"><input type="text" name="name" class="form-control" placeholder="Full Name" required></div>
-                            <div class="col-md-6"><input type="text" name="patient_id" class="form-control" placeholder="Assign Patient ID" required></div>
-                            <div class="col-md-4"><input type="password" name="password" class="form-control" placeholder="Temporary Password" required></div>
-                            <div class="col-md-4"><input type="date" name="dob" class="form-control" required></div>
-                            <div class="col-md-4">
-                                <select name="gender" class="form-control"><option value="Female">Female Only</option></select>
-                            </div>
-                            <div class="col-12"><button type="submit" class="btn btn-primary">Register Patient</button></div>
-                        </form>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if role == 'doctor' %}
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-header bg-success text-white">Run AI Prediction</div>
-                    <div class="card-body">
-                        <form action="/predict" method="POST">
-                            <div class="mb-3">
-                                <select name="patient_id" class="form-control" required>
-                                    <option value="">Select Patient...</option>
-                                    {% for p in patients %}
-                                        <option value="{{ p.id }}">{{ p.name }} ({{ p.id }})</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <p class="text-muted small">Enter patient risk factors (Dataset features):</p>
-                            <div class="row g-2 mb-3">
-                                {% for feat in feature_names %}
-                                <div class="col-md-4">
-                                    <input type="number" step="any" name="{{ feat }}" class="form-control" placeholder="{{ feat }}" required>
-                                </div>
-                                {% endfor %}
-                            </div>
-                            <button type="submit" class="btn btn-success">Generate AI Assessment</button>
-                        </form>
-                    </div>
-                </div>
-                {% endif %}
-
-                {% if role in ['doctor', 'radiologist'] %}
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-header bg-secondary text-white">Upload Files (Prescriptions/Biopsy)</div>
-                    <div class="card-body">
-                        <form action="/upload_file" method="POST" enctype="multipart/form-data" class="row g-3">
-                            <div class="col-md-4"><input type="text" name="patient_id" class="form-control" placeholder="Patient ID" required></div>
-                            <div class="col-md-4">
-                                <select name="file_type" class="form-control">
-                                    <option value="Biopsy">Biopsy Scan</option>
-                                    <option value="Prescription">Prescription</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4"><input type="file" name="file" class="form-control" required></div>
-                            <div class="col-12"><button type="submit" class="btn btn-secondary">Upload</button></div>
-                        </form>
-                    </div>
-                </div>
-                {% endif %}
-
-            </div>
-
-            <div class="col-md-4">
-                
-                {% if role in ['pharmacist', 'admin'] %}
-                <div class="card mb-4 shadow-sm">
-                    <div class="card-header bg-warning">Generate Bill</div>
-                    <div class="card-body">
-                        <form action="/add_bill" method="POST">
-                            <input type="text" name="patient_id" class="form-control mb-2" placeholder="Patient ID" required>
-                            <input type="number" step="0.01" name="amount" class="form-control mb-2" placeholder="Amount ($)" required>
-                            <input type="text" name="description" class="form-control mb-2" placeholder="Description" required>
-                            <button type="submit" class="btn btn-warning w-100">Add Bill</button>
-                        </form>
-                    </div>
-                </div>
-                {% endif %}
-
-                <div class="card shadow-sm">
-                    <div class="card-header bg-dark text-white">System Data View</div>
-                    <div class="card-body" style="max-height: 500px; overflow-y: auto;">
-                        {% if role == 'patient' %}
-                            <h5>My Status: <b>{{ my_details.risk_status }}</b></h5>
-                            <hr>
-                            <h6>My Bills</h6>
-                            <ul>{% for b in bills if b.patient_id == session.user %}<li>${{ b.amount }} - {{ b.description }}</li>{% endfor %}</ul>
-                        {% else %}
-                            <h6>Recent Patients</h6>
-                            <ul class="list-group list-group-flush mb-3">
-                                {% for p in patients %}
-                                <li class="list-group-item small">
-                                    <b>{{ p.id }}</b>: {{ all_details[p.id].risk_status }}
-                                </li>
-                                {% endfor %}
-                            </ul>
-                            
-                            <h6>Recent Notes & Files</h6>
-                            <ul class="list-group list-group-flush mb-3">
-                                {% for n in notes %}
-                                <li class="list-group-item small">Note by {{ n.author_name }} on {{ n.patient_id }}</li>
-                                {% endfor %}
-                                {% for u in uploads %}
-                                <li class="list-group-item small">{{ u.file_type }} uploaded for {{ u.patient_id }}</li>
-                                {% endfor %}
-                            </ul>
-                        {% endif %}
-                    </div>
-                </div>
-
-            </div>
-        </div>
+<form action="/predict" method="POST">
+    <div class="mb-4">
+        <label class="form-label fw-bold">Select Patient</label>
+        <select name="patient_id" class="form-select border-primary" required>
+            <option value="">Choose a patient...</option>
+            {% for p in patients %}
+                <option value="{{ p.id }}">{{ p.name }} ({{ p.id }})</option>
+            {% endfor %}
+        </select>
     </div>
-</body>
-</html>
+
+    <p class="text-muted small mb-2">Patient Risk Factors Profile:</p>
+    
+    <div class="accordion mb-4" id="predictionFormAccordion">
+        
+        <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">1. Basic Demographics</button></h2>
+            <div id="collapseOne" class="accordion-collapse collapse show" data-bs-parent="#predictionFormAccordion">
+                <div class="accordion-body row g-3">
+                    <div class="col-md-3"><label class="small text-muted">Age</label><input type="number" name="Age" class="form-control" value="0"></div>
+                    <div class="col-md-3"><label class="small text-muted">Number of sexual partners</label><input type="number" name="Number of sexual partners" class="form-control" value="0"></div>
+                    <div class="col-md-3"><label class="small text-muted">First sexual intercourse (Age)</label><input type="number" name="First sexual intercourse" class="form-control" value="0"></div>
+                    <div class="col-md-3"><label class="small text-muted">Num of pregnancies</label><input type="number" name="Num of pregnancies" class="form-control" value="0"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">2. Lifestyle & Contraception</button></h2>
+            <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#predictionFormAccordion">
+                <div class="accordion-body row g-3 align-items-end">
+                    <div class="col-md-2">
+                        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="Smokes" value="1" id="smk"><label class="form-check-label" for="smk">Smoker</label></div>
+                    </div>
+                    <div class="col-md-5"><label class="small text-muted">Smokes (years)</label><input type="number" step="any" name="Smokes (years)" class="form-control" value="0"></div>
+                    <div class="col-md-5"><label class="small text-muted">Smokes (packs/year)</label><input type="number" step="any" name="Smokes (packs/year)" class="form-control" value="0"></div>
+                    
+                    <div class="col-12"><hr class="my-2"></div>
+                    <div class="col-md-3">
+                        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="Hormonal Contraceptives" value="1"><label class="form-check-label">Hormonal Contraceptives</label></div>
+                    </div>
+                    <div class="col-md-3"><label class="small text-muted">Years Used</label><input type="number" step="any" name="Hormonal Contraceptives (years)" class="form-control" value="0"></div>
+                    
+                    <div class="col-md-3">
+                        <div class="form-check form-switch"><input class="form-check-input" type="checkbox" name="IUD" value="1"><label class="form-check-label">IUD Present</label></div>
+                    </div>
+                    <div class="col-md-3"><label class="small text-muted">Years Used</label><input type="number" step="any" name="IUD (years)" class="form-control" value="0"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">3. STD History</button></h2>
+            <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#predictionFormAccordion">
+                <div class="accordion-body bg-light">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-4">
+                            <div class="form-check form-switch fs-5 text-danger"><input class="form-check-input" type="checkbox" name="STDs" value="1"><label class="form-check-label">Patient has/had STDs</label></div>
+                        </div>
+                        <div class="col-md-4"><label class="small text-muted">Total STDs (number)</label><input type="number" name="STDs (number)" class="form-control" value="0"></div>
+                        <div class="col-md-4"><label class="small text-muted">STDs: Number of diagnosis</label><input type="number" name="STDs: Number of diagnosis" class="form-control" value="0"></div>
+                    </div>
+                    
+                    <p class="small fw-bold mb-2">Specific Diagnoses (Check all that apply):</p>
+                    <div class="row g-2 mb-3">
+                        {% set std_list = ['condylomatosis', 'cervical condylomatosis', 'vaginal condylomatosis', 'vulvo-perineal condylomatosis', 'syphilis', 'pelvic inflammatory disease', 'genital herpes', 'molluscum contagiosum', 'AIDS', 'HIV', 'Hepatitis B', 'HPV'] %}
+                        {% for std in std_list %}
+                        <div class="col-md-4">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="STDs:{{ std }}" value="1" id="std_{{ loop.index }}">
+                                <label class="form-check-label small" for="std_{{ loop.index }}">{{ std | title }}</label>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6"><label class="small text-muted">Time since first diagnosis (years)</label><input type="number" step="any" name="STDs: Time since first diagnosis" class="form-control" value="0"></div>
+                        <div class="col-md-6"><label class="small text-muted">Time since last diagnosis (years)</label><input type="number" step="any" name="STDs: Time since last diagnosis" class="form-control" value="0"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <h2 class="accordion-header"><button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour">4. Previous Clinical Tests & Diagnoses</button></h2>
+            <div id="collapseFour" class="accordion-collapse collapse" data-bs-parent="#predictionFormAccordion">
+                <div class="accordion-body row g-3">
+                    <div class="col-md-6 border-end">
+                        <p class="small fw-bold mb-2">Previous Diagnoses:</p>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="Dx:Cancer" value="1"><label class="form-check-label">Cancer</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="Dx:CIN" value="1"><label class="form-check-label">CIN</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="Dx:HPV" value="1"><label class="form-check-label">HPV</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="Dx" value="1"><label class="form-check-label">Other Dx</label></div>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="small fw-bold mb-2">Clinical Test Results (Positive):</p>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="Hinselmann" value="1"><label class="form-check-label">Hinselmann Test Positive</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="Schiller" value="1"><label class="form-check-label">Schiller Test Positive</label></div>
+                        <div class="form-check"><input class="form-check-input" type="checkbox" name="Citology" value="1"><label class="form-check-label">Cytology Positive</label></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+    <button type="submit" class="btn btn-success w-100 fw-bold py-2 shadow-sm">Generate AI Assessment</button>
+</form>
