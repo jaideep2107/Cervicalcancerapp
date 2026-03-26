@@ -151,8 +151,10 @@ def create_patient():
     new_patient = PatientDetail(patient_id=request.form.get('patient_id'), dob=dob, gender='Female')
     
     db.session.add(new_user)
+    db.session.flush()  # <--- NEW: Forces the database to create the User first
+    
     db.session.add(new_patient)
-    db.session.commit()
+    db.session.commit() # <--- Finalizes both operations safely
     flash('Patient created successfully.', 'success')
     return redirect(url_for('dashboard'))
 
